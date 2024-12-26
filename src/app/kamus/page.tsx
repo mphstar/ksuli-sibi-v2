@@ -1,14 +1,7 @@
 import LayoutPage from "@/components/templates/LayoutPage";
-import prisma from "@/lib/prisma";
-import saveVisitor from "@/services/visitor";
 import { abjads } from "@/utils/ConvertResult";
 
-
-const page = async () => {
-  
-  saveVisitor();
-  
-
+const page = () => {
   return (
     <LayoutPage>
       <div className="flex flex-col flex-1 py-4">

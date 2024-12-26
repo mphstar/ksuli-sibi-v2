@@ -128,7 +128,6 @@ const page = () => {
           const finalResult = preProcessLandmark(calt);
 
           makePrediction(finalResult);
-          
         }
       }
     }
@@ -142,6 +141,7 @@ const page = () => {
 
     loadModel();
     startWebcam();
+    
 
     setLoadCamera(true);
 

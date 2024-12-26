@@ -5,9 +5,17 @@ import NavLink from "../molecules/NavLink";
 import { cn } from "@/lib/utils";
 import { IoClose } from "react-icons/io5";
 import { RxHamburgerMenu } from "react-icons/rx";
+import { useEffect } from "react";
+import saveVisitor from "@/services/visitor";
 
 const HeaderPage = () => {
   const navStore = useNavbarStore();
+
+  useEffect(() => {
+    saveVisitor();
+    navStore.navSelected = "home";
+  }, []);
+
   return (
     <div className="bg-white drop-shadow w-full h-fit sticky top-0 z-[300]">
       <header className="flex flex-row items-center gap-2 justify-between px-4 py-3 container max-w-[1200px]">
