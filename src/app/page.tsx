@@ -1,101 +1,181 @@
-import Image from "next/image";
+"use client";
+import LayoutPage from "@/components/templates/LayoutPage";
+import { useEffect, useRef, useState } from "react";
+import { FaCircleCheck } from "react-icons/fa6";
+import * as tf from "@tensorflow/tfjs";
+import { FilesetResolver, HandLandmarker } from "@mediapipe/tasks-vision";
+import calcLandmarkList from "@/utils/CalculateLandmark";
+import preProcessLandmark from "@/utils/PreProcessLandmark";
+import ConvertResult from "@/utils/ConvertResult";
+import useNavbarStore from "@/stores/NavbarStore";
 
-export default function Home() {
+tf.env().set("DEBUG", false); // Nonaktifkan debug
+
+type PredictResult = {
+  abjad: String;
+  acc: String;
+};
+
+const page = () => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [loadCamera, setLoadCamera] = useState(false);
+
+  const [resultPredict, setResultPredict] = useState<PredictResult>({
+    abjad: "",
+    acc: "",
+  });
+
+  let model: tf.LayersModel;
+  let handLandmarker: HandLandmarker;
+
+  const [handPresence, setHandPresence] = useState(false);
+
+  const startWebcam = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+      });
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+
+      //   setLoadCamera(true);
+      await initializeHandDetection();
+    } catch (error) {
+      console.error("Error accessing webcam:", error);
+    }
+  };
+
+  const loadModel = async () => {
+    setLoadCamera(false);
+    try {
+      const lm = await tf.loadLayersModel("/model/model.json");
+      model = lm;
+
+      const emptyInput = tf.tensor2d([[0, 0]]);
+
+      model.predict(emptyInput) as tf.Tensor;
+
+      setLoadCamera(true);
+    } catch (error) {
+      //   console.error("Error loading model:", error);
+    }
+  };
+
+  const initializeHandDetection = async () => {
+    try {
+      const vision = await FilesetResolver.forVisionTasks(
+        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
+      );
+      handLandmarker = await HandLandmarker.createFromOptions(vision, {
+        baseOptions: {
+          modelAssetPath: `https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task`,
+        },
+        numHands: 2,
+        runningMode: "VIDEO",
+      });
+
+      detectHands();
+    } catch (error) {
+      console.error("Error initializing hand detection:", error);
+    }
+  };
+
+  const makePrediction = async (finalResult: any) => {
+    const input = tf.tensor2d([finalResult]);
+
+    // Melakukan prediksi
+    const prediction = model.predict(input) as tf.Tensor;
+
+    const result = prediction.dataSync();
+
+    const maxEntry = Object.entries(result).reduce((max, entry) => {
+      const [, value] = entry;
+      return value > max[1] ? entry : max;
+    });
+
+    // maxEntry sekarang berisi [key, value] dengan nilai terbesar
+    const [maxKey, maxValue] = maxEntry;
+
+    const percentageValue = (maxValue * 100).toFixed(2) + "%";
+
+    setResultPredict({
+      abjad: ConvertResult(parseInt(maxKey)),
+      acc: percentageValue,
+    });
+
+    // Hapus tensor
+    input.dispose();
+    prediction.dispose();
+  };
+
+  const detectHands = async () => {
+    if (videoRef.current && videoRef.current.readyState >= 2) {
+      const detections = handLandmarker.detectForVideo(
+        videoRef.current,
+        performance.now()
+      );
+
+      setHandPresence(detections.handedness.length > 0);
+
+      // Assuming detections.landmarks is an array of landmark objects
+      if (detections.landmarks) {
+        if (detections.handednesses.length > 0) {
+          const landm = detections.landmarks[0].map((landmark) => landmark);
+
+          const calt = calcLandmarkList(videoRef.current, landm);
+          const finalResult = preProcessLandmark(calt);
+
+          makePrediction(finalResult);
+          
+        }
+      }
+    }
+    requestAnimationFrame(detectHands);
+  };
+
+  const store = useNavbarStore();
+
+  useEffect(() => {
+    store.setNavSelected("home");
+
+    loadModel();
+    startWebcam();
+
+    setLoadCamera(true);
+
+    return () => {
+      // stop camera
+    };
+  }, []);
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+    <LayoutPage>
+      <div className="flex flex-col flex-1 py-4">
+        {loadCamera ? (
+          <div className="rounded-md overflow-hidden relative">
+            {handPresence && (
+              <div className="top-6 left-6 absolute flex gap-2 items-center bg-white text-black rounded-md drop-shadow px-3 py-2">
+                <FaCircleCheck className="text-green-500" />
+                <h1 className="text-2xl font-semibold text-center">
+                  {resultPredict.abjad} ({resultPredict.acc})
+                </h1>
+              </div>
+            )}
+            <video
+              ref={videoRef}
+              className="w-full max-h-[80svh] object-cover"
+              autoPlay
+              playsInline
+            ></video>
+          </div>
+        ) : (
+          <div>Loading...</div>
+        )}
+      </div>
+    </LayoutPage>
   );
-}
+};
+
+export default page;
