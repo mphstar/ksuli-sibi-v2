@@ -2,6 +2,7 @@ import LayoutPage from "@/components/templates/LayoutPage";
 import { abjads } from "@/utils/ConvertResult";
 
 const page = () => {
+  
   return (
     <LayoutPage>
       <div className="flex flex-col flex-1 py-4">

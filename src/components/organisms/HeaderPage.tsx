@@ -12,7 +12,7 @@ const HeaderPage = () => {
   const navStore = useNavbarStore();
 
   useEffect(() => {
-    saveVisitor();
+    // saveVisitor();
     navStore.navSelected = "home";
   }, []);
 

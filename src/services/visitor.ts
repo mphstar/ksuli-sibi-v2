@@ -1,16 +1,23 @@
-const saveVisitor = async () => {
-  const data = await fetch("/api/visitor", {
-    method: "POST",
-    body: JSON.stringify({
-      path: window.location.pathname,
-    }),
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
+import prisma from "@/lib/prisma";
 
-  const result = await data.json();
-  console.log(result);
+const saveVisitor = async () => {
+  const information = await fetch("http://ip-api.com/json/");
+  const result = await information.json();
+
+  try {
+    const data = await prisma.visitor.create({
+      data: {
+        ip_address: result.query,
+        city: result.city,
+        region: result.regionName,
+        organization: result.org,
+        timezone: result.timezone,
+      },
+    });
+
+  } catch (error) {
+    console.error("Error saving visitor:", error);
+  }
 };
 
 export default saveVisitor;

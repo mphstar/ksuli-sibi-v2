@@ -1,7 +1,10 @@
 import HeaderPage from "../organisms/HeaderPage";
 import FooterPage from "../organisms/FooterPage";
+import saveVisitor from "@/services/visitor";
 
 const LayoutPage = ({ children }: { children: React.ReactNode }) => {
+  saveVisitor();
+
   return (
     <div className="flex flex-col min-h-svh bg-ground">
       <HeaderPage />
